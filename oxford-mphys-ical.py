@@ -1,18 +1,14 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # Oxford Physics Timetable iCalendar Generator
 
-import requests, icalendar, datetime, pytz
-from bs4 import BeautifulSoup
-from uuid import uuid4
-
-s = requests.Session()
-s.headers = {
-'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; rv:68.0) Gecko/20100101 Firefox/68.0',
-'Accept': '*/*',
-'Accept-Language': 'en-US,en;q=0.5',
-'Connection': 'keep-alive'
-}
+import requests
+import icalendar
+import datetime
+import pytz
+import bs4
+import uuid
+import getpass
 
 class timetable():
     """
@@ -21,8 +17,7 @@ class timetable():
     dates, we have to deduce the actual dates by adding the nth day of the mth week to the date of the
     first Monday of week 0.
     The class initialisation would gobble up every single unique entry in the timetable page so
-    tailoring to one's courses should be done afterwards by invoking
-    timetable.calendar.subcomponents.remove().
+    tailoring to one's courses should be done afterwards by invoking timetable.calendar.subcomponents.remove().
     ---
     INPUT:
     > term (str): Academic term to query for, i.e. "Michaelmas", "Hilary" or "Trinity"
@@ -36,7 +31,8 @@ class timetable():
         self.year = year
         self.cohort_year = cohort_year
         self.start_date = start_date
-        self.host = 'https://www3.physics.ox.ac.uk/lectures' # URL of the timetable query page
+        self.host = 'https://www3.physics.ox.ac.uk/lectures2' # URL of the timetable query page
+        self.session = self.session_setup()
         # Translate the English description of each weekday into the corresponding offset from Monday
         self.weekday_lookup = {
             'Monday': 0,
@@ -52,7 +48,21 @@ class timetable():
         # Create iCalendar events associated with each entry
         self.links = self.link_grabber()
         for entry in self.links:
-            self.create_events(entry['lecture'], entry['url'], self.start_date)
+            self.create_events(entry['course'], entry['url'], self.start_date)
+
+    def session_setup(self):
+        """
+        Setup a session object for keep-alive connections and authentication if
+        accessed from outside of the University network.
+        """
+        session = requests.Session()
+        auth_test = session.get(self.host)
+        if auth_test.status_code == 401:
+            print('Authentication required! Please enter your Physics department credentials (NOT SSO).')
+            username = input('Username: ')
+            password = getpass.getpass()
+            session.auth = (username, password)
+        return session
 
     def link_grabber(self):
         """
@@ -62,25 +72,30 @@ class timetable():
         """
         url = f'{self.host}/timetable.aspx'
         params = {'term': self.term, 'year': self.year, 'course': f'{self.cohort_year}physics'}
-        page = s.get(url, params=params)
+        page = self.session.get(url, params=params)
         if not page.ok:
-            raise Exception('HTTP error in fetching timetable!')
-        soup = BeautifulSoup(page.content, 'html.parser')
+            raise RuntimeError(f'Error in getting timetable page! Status code: {page.status_code}')
+        soup = bs4.BeautifulSoup(page.content, 'html.parser')
         table = soup.find('table')
         links = []
         for hyperlink in set(table.find_all('a')):
-            links.append({'lecture': hyperlink.get_text(strip=True), 'url': f'{self.host}/{hyperlink["href"]}'})
+            links.append({'course': hyperlink.get_text(strip=True), 'url': f'{self.host}/{hyperlink["href"]}'})
         return links
 
     def create_events(self, lecture, url, start_date):
         """
         Create iCalendar events based on the information in a provided course page, i.e. the page you
         find yourself in upon clicking on one timetable entry.
+        ---
+        INPUT:
+        > lecture (str): The course name
+        > url (str): The URL to the course information on the Physics department website
+        > start_date (datetime.datetime): Datetime object representing the Monday of week 0
         """
-        page = s.get(url)
+        page = self.session.get(url)
         if not page.ok:
-            raise Exception('HTTP error in fetching lecture information!')
-        soup = BeautifulSoup(page.content, 'html.parser')
+            raise RuntimeError(f'Error in getting lecture information! Status code: {page.status_code}')
+        soup = bs4.BeautifulSoup(page.content, 'html.parser')
         events = []
         # Skipping the first row since it just contains column titles
         for row in soup.find('table').find_all('tr')[1:]:
@@ -118,8 +133,8 @@ class timetable():
             # Begin collation if there are identical events along the temporal chain
             # This code checks if the next entry is identical and connects to the current entry,
             # then merge the events into one by discarding the intermediate time slots
-            if index+1 < len(raw_events):
-                next_event = raw_events[index+1]
+            if index+1 < len(events):
+                next_event = events[index+1]
                 name_next = next_event['name']
                 start_time_next = next_event['start_time']
                 location_next = next_event['location']
@@ -139,18 +154,52 @@ class timetable():
             ical_event.add('dtend', end_time)
             ical_event.add('dtstamp', datetime.datetime.now(tz=pytz.utc)) # RFC5545 compliance, must be UTC
             ical_event.add('location', location)
-            ical_event['uid'] = uuid4() # UUID version 4 (random) for uniqueness
+            ical_event['uid'] = uuid.uuid4() # UUID version 4 (random) for uniqueness
             ical_event['URL'] = url
             self.calendar.add_component(ical_event) # Add the event into the calendar object
             start_time_first = None # Reset the marker before the next loop
 
+def get_monday_wk0_date(year, term):
+    """
+    Get the date of the Monday of week 0 from the Oxford Term Dates hosted by Wolfson College.
+    The iCalendar hosted on the website assumes that each entry begins at the Sunday before,
+    so for a week 0 Monday on the 2nd, the entry "0th week, xxx Term" shall begin on the 1st.
+    ---
+    INPUT:
+    > year (int): The requested ACADEMIC YEAR so no need to +1 for Hilary/Trinity term
+    > term (str): The requested academic term, i.e. "Michaelmas", "Hilary" or "Trinity"
+    """
+    if term in ('Hilary', 'Trinity'):
+        year += 1 # Hilary/Trinity term occurs in the next calendar year
+    elif term != 'Michaelmas':
+        raise ValueError('Invalid term!') # It has to be invalid if the input is none of the 3
+    wolfson_ical_req = requests.get('https://www.wolfson.ox.ac.uk/sites/default/files/inline-files/oxdate.ics')
+    if wolfson_ical_req.ok:
+        wolfson_ical = icalendar.Calendar.from_ical(wolfson_ical_req.content)
+    for event in wolfson_ical.walk('VEVENT'):
+        # Filter for 0th week entries before filtering for the requested year
+        if event['summary'].startswith(f'0th Week, {term} Term'):
+            if event['dtstart'].dt.year == year:
+                # The entry begins on Sunday so increment the date by a day
+                monday = event['dtstart'].dt + datetime.timedelta(days=1)
+                return datetime.datetime(monday.year, monday.month, monday.day, tzinfo=pytz.timezone('Europe/London'))
+
 if __name__ == '__main__':
+    # Silly little functions for custom prompts, may be revamped in the future but it works!
     def choose_prompt(prompt, choice):
+        """
+        Print prompt before asking the user to choose by entering a valid index.
+        If invalid, the function will loop until a valid one is given.
+        ---
+        INPUT:
+        > prompt (str): Stuff to be displayed before asking for choices
+        > choice (iterable): An iterable of possible choices
+        """
         print(prompt)
         response = -1
         while response < 0 or response >= len(choice):
-            for i, j in enumerate(choice):
-                print('{}) {}'.format(i, j))
+            for index, entry in enumerate(choice):
+                print(f'{index}) {entry}')
             response = input('Enter the index of your choice: ')
             try:
                 response = int(response)
@@ -160,10 +209,19 @@ if __name__ == '__main__':
         return choice[response]
 
     def number_prompt(prompt, limit_min, limit_max):
+        """
+        Prompt the user to enter an integer within a given range.
+        The function will loop until a valid integer is given.
+        ---
+        INPUT:
+        > prompt (str): Stuff to be displayed before asking for a number
+        > limit_min (int): Minimum integer to be accepted
+        > limit_max (int): Maximum integer to be accepted
+        """
         print(prompt)
         response = -1
         while response < limit_min or response > limit_max:
-            response = input('Enter the number in range [{}, {}]: '.format(limit_min, limit_max))
+            response = input(f'Enter the number in range [{limit_min}, {limit_max}]: ')
             try:
                 response = int(response)
             except:
@@ -172,44 +230,47 @@ if __name__ == '__main__':
         return response
 
     def select_prompt(prompt, choice):
+        """
+        Prompts the user to select stuff from a list, this is like what you have
+        in video games where you are choosing which ingredients to make a meal from.
+        ---
+        INPUT:
+        > prompt (str): Stuff to be displayed before choosing from the list
+        > choice (list): The list from which entries are selected
+        """
         print(prompt)
         response = -1
+        # copy() is necessary for creating another copy of the list, else a
+        # view is generated and we lose an entry every time we remove one!
         output = choice.copy()
         while True:
-            for i, j in enumerate(choice):
-                text = '{}) {} (selected)'.format(i, j) if j in output else '{}) {}'.format(i, j)
+            for index, entry in enumerate(choice):
+                text = f'{index}) {entry} (selected)' if entry in output else f'{index}) {entry}'
                 print(text)
             response = input('Enter the index of your choice [F to quit]: ')
-            if response in ('f', 'F'):
+            if response.upper() == 'F':
                 break
             try:
                 response = choice[int(response)]
-            except:
+            except IndexError:
+                # Catch if an invalid index is supplied
                 response = -1
                 continue
             if response in output:
                 output.remove(response)
-                print('{} removed from list.'.format(response))
+                print(f'{response} removed from list.')
             else:
                 output.insert(choice.index(response), response)
-                print('{} added to list.'.format(response))
+                print(f'{response} added to list.')
         return output
 
     term = choose_prompt('Which term of the academic year should I look at?', ('Michaelmas', 'Hilary', 'Trinity'))
-    print()
     cohort_year = number_prompt('Which year group should I look at?', 1, 4)
-    print()
-    year = int(input('What year is it? '))
-    print()
-    start_month = number_prompt('What is the month where Week 0 lies?', 1, 12)
-    print()
-    start_day = number_prompt('What is the day where Monday of Week 0 lies?', 0, 31)
-    start_date = datetime.datetime(year, start_month, start_day, tzinfo=pytz.timezone('Europe/London'))
-
-    filename = 'OxfPhysTimetable_Year{}_{}{}.ics'.format(cohort_year, term, year)
+    year = int(input('What academic year is it? e.g. 2023 for 2023–2024: '))
+    start_date = get_monday_wk0_date(year, term)
 
     timetable = timetable(term, year, cohort_year, start_date)
-    courses_all = [i['lecture'] for i in timetable.links]
+    courses_all = [entry['course'] for entry in timetable.links]
     courses_selected = select_prompt('Select the courses to be placed in the calendar:', courses_all)
     courses_to_discard = set(courses_all) - set(courses_selected)
     for course in courses_to_discard:
@@ -217,6 +278,7 @@ if __name__ == '__main__':
             if event['summary'] == course:
                 timetable.calendar.subcomponents.remove(event)
 
+    filename = f'OxfPhysTimetable_Year{cohort_year}_{term}{year}.ics'
     with open(filename, 'wb') as f:
         f.write(timetable.calendar.to_ical())
-    print('Calendar saved as {}. Exiting...'.format(filename))
+    print(f'Calendar saved as {filename}. Exiting...')
