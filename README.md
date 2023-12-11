@@ -57,7 +57,7 @@ Calendar saved as OxfPhysTimetable_Year4_Michaelmas2023.ics. Exiting...
 ```
 
 ### Extraction Logic
-The program first visits the [timetable page](https://www3.physics.ox.ac.uk/lectures2) hosted on the Physics department to check if authentication is required (login not needed if accessed from the University network). If so then it prompts the user to enter the credentials.
+The program first visits the [timetable page](https://www3.physics.ox.ac.uk/lectures2) hosted on the Physics department to check if authentication is required (login not needed if accessed from the University network). If so then it prompts the user to enter the Physics network credentials (see https://www2.physics.ox.ac.uk/it-services/how-to-change-your-physics-department-password for details).
 
 Next the program proceeds to query the relevant timetable by submitting the form that one would find on the timetable page. Then a list of unique courses is compiled by scraping the table provided by the website.
 
