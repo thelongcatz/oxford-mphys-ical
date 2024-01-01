@@ -15,7 +15,6 @@ jobs:
             CMD_DEPENDENCIES: >
                 brew install coreutils &&
                 python3 -m pip install -U --user pip setuptools wheel &&
-                # We need to ignore wheels otherwise we break universal2 builds
                 python3 -m pip install -U --user --no-binary :all: Pyinstaller -r requirements.txt
             CMD_BUILD: >
                 pyinstaller --target-architecture universal2 --onefile --name oxford_mphys_ical_macos oxford_mphys_ical.py
@@ -25,7 +24,6 @@ jobs:
             PYTHON_VERSION: '3.8'
             CMD_DEPENDENCIES: >
                 python -m pip install -U pip setuptools wheel py2exe &&
-                # yt-dlp build used for backwards compatibility
                 pip install -U "https://yt-dlp.github.io/Pyinstaller-Builds/x86_64/pyinstaller-5.8.0-py3-none-any.whl" -r requirements.txt
             CMD_BUILD: pyinstaller --onefile --name oxford_mphys_ical oxford_mphys_ical.py
             OUT_FILE_NAME: oxford_mphys_ical.exe
