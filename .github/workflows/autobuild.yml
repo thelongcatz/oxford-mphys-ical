@@ -16,8 +16,8 @@ jobs:
                 brew install coreutils &&
                 python3 -m pip install -U --user pip setuptools wheel &&
                 python3 -m pip install -U --user --no-binary :all: Pyinstaller -r requirements.txt &&
-                echo "${HOME}/" >> $GITHUB_PATH
-            CMD_BUILD: Library/Python/3.12/bin/pyinstaller --target-architecture universal2 --onefile --name oxford_mphys_ical_macos oxford_mphys_ical.py
+                echo "${HOME}/Library/Python/3.12/bin/" >> $GITHUB_PATH
+            CMD_BUILD: pyinstaller --target-architecture universal2 --onefile --name oxford_mphys_ical_macos oxford_mphys_ical.py
             OUT_FILE_NAME: oxford_mphys_ical_macos
           - os: windows-latest
             TARGET: windows
