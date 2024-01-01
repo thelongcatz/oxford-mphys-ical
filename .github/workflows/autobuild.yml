@@ -45,7 +45,7 @@ jobs:
     - name: Build with pyinstaller for ${{ matrix.TARGET }}
       run: ${{ matrix.CMD_BUILD }}
     - name: Upload build as artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.OUT_FILE_NAME }}
         path: ./dist/${{ matrix.OUT_FILE_NAME }}
@@ -56,13 +56,13 @@ jobs:
     needs: build
     steps:
       - name: Download builds from artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           merge-multiple: true
       - name: Publish release
         uses: softprops/action-gh-release@v0.1.15
         with:
           files: |
-            oxford_mphys_ical_linux
-            oxford_mphys_ical.exe
-            oxford_mphys_ical_macos
+            ${{ github.workspace }}/oxford_mphys_ical_linux
+            ${{ github.workspace }}/oxford_mphys_ical.exe
+            ${{ github.workspace }}/oxford_mphys_ical_macos
