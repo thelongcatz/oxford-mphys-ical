@@ -1,10 +1,13 @@
-name: Autobuild
+name: Build and Release
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
+    # The building process is directly inspired by yt-dlp: https://github.org/yt-dlp/yt-dlp/.github/workflows/build.yml
     name: Build packages
     runs-on: ${{ matrix.os }}
     strategy:
@@ -12,11 +15,12 @@ jobs:
         include:
           - os: macos-latest
             TARGET: macos
+            # Last line a hack to add the Python directory to PATH
             CMD_DEPENDENCIES: >
                 brew install coreutils &&
                 python3 -m pip install -U --user pip setuptools wheel &&
                 python3 -m pip install -U --user --no-binary :all: Pyinstaller -r requirements.txt &&
-                echo "${HOME}/Library/Python/3.12/bin/" >> $GITHUB_PATH
+                echo "$(python3 -m pip show Pyinstaller | awk '/Location/{print $2}' | sed 's|/lib/python/site-packages||')/bin/" >> $GITHUB_PATH
             CMD_BUILD: pyinstaller --target-architecture universal2 --onefile --name oxford_mphys_ical_macos oxford_mphys_ical.py
             OUT_FILE_NAME: oxford_mphys_ical_macos
           - os: windows-latest
@@ -41,7 +45,7 @@ jobs:
       with:
         python-version: ${{ matrix.PYTHON_VERSION }}
     - name: Install dependencies
-      run: ${{ matrix.CMD_DEPENDENCIES }}       
+      run: ${{ matrix.CMD_DEPENDENCIES }}
     - name: Build with pyinstaller for ${{ matrix.TARGET }}
       run: ${{ matrix.CMD_BUILD }}
     - name: Upload build as artifact

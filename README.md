@@ -10,6 +10,12 @@ Features:
 ### How to use
 Just pop into a terminal and run the program from there! The wizard will guide you to create an iCalendar file in the current directory, e.g. `~/OxfPhysTimetable_Year4_Michaelmas2023.ics` if the program is placed at your home directory.
 
+For convenience the compiled script is also available for download in the Release section:
+[![Windows](https://img.shields.io/badge/-Windows-blue.svg?style=for-the-badge&logo=windows)](https://github.com/thelongcatz/oxford-mphys-ical/releases/latest/download/oxford_mphys_ical.exe)
+[![Linux](https://img.shields.io/badge/-Linux-FCC624.svg?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/thelongcatz/oxford-mphys-ical/releases/latest/download/oxford_mphys_ical_linux)
+[![MacOS](https://img.shields.io/badge/-MacOS-black.svg?style=for-the-badge&logo=apple)](https://github.com/thelongcatz/oxford-mphys-ical/releases/latest/download/oxford_mphys_ical_macos)
+
+Example run:
 ```
 $ python oxford_mphys_ical.py
 Which term of the academic year should I look at?
@@ -62,3 +68,5 @@ The program first visits the [timetable page](https://www3.physics.ox.ac.uk/lect
 Next the program proceeds to query the relevant timetable by submitting the form that one would find on the timetable page. Then a list of unique courses is compiled by scraping the table provided by the website.
 
 The program then navigates through each course page, extracting the information from the included table, and compiles them into an iCalendar object before presenting it to the user to filter out unneeded entries.
+
+A note on the term dates: since the timetable itself does not contain any information on the actual date, we infer that automagically by using the [Oxford Term Dates](http://www.wolfson.ox.ac.uk/oxdates) calendar hosted by Wolfson College.
