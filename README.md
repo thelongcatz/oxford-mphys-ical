@@ -11,6 +11,7 @@ Features:
 Just pop into a terminal and run the program from there! The wizard will guide you to create an iCalendar file in the current directory, e.g. `~/OxfPhysTimetable_Year4_Michaelmas2023.ics` if the program is placed at your home directory.
 
 For convenience the compiled script is also available for download in the Release section:
+
 [![Windows](https://img.shields.io/badge/-Windows-blue.svg?style=for-the-badge&logo=windows)](https://github.com/thelongcatz/oxford-mphys-ical/releases/latest/download/oxford_mphys_ical.exe)
 [![Linux](https://img.shields.io/badge/-Linux-FCC624.svg?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/thelongcatz/oxford-mphys-ical/releases/latest/download/oxford_mphys_ical_linux)
 [![MacOS](https://img.shields.io/badge/-MacOS-black.svg?style=for-the-badge&logo=apple)](https://github.com/thelongcatz/oxford-mphys-ical/releases/latest/download/oxford_mphys_ical_macos)
