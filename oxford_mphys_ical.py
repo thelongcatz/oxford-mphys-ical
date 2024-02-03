@@ -31,7 +31,7 @@ class timetable():
         self.year = year
         self.cohort_year = cohort_year
         self.start_date = start_date
-        self.host = 'https://www3.physics.ox.ac.uk/lectures2' # URL of the timetable query page
+        self.host = 'https://www3.physics.ox.ac.uk/lectures' # URL of the timetable query page
         self.session = self.session_setup()
         # Translate the English description of each weekday into the corresponding offset from Monday
         self.weekday_lookup = {
@@ -62,6 +62,9 @@ class timetable():
             username = input('Username: ')
             password = getpass.getpass()
             session.auth = (username, password)
+        if auth_test.url != self.host:
+            # Replace the URL of the timetable to the redirected one
+            self.host = auth_test.url
         return session
 
     def link_grabber(self):
@@ -166,13 +169,11 @@ def get_monday_wk0_date(year, term):
     so for a week 0 Monday on the 2nd, the entry "0th week, xxx Term" shall begin on the 1st.
     ---
     INPUT:
-    > year (int): The requested ACADEMIC YEAR so no need to +1 for Hilary/Trinity term
+    > year (int): The requested YEAR so +1 for Hilary/Trinity term
     > term (str): The requested academic term, i.e. "Michaelmas", "Hilary" or "Trinity"
     """
-    if term in ('Hilary', 'Trinity'):
-        year += 1 # Hilary/Trinity term occurs in the next calendar year
-    elif term != 'Michaelmas':
-        raise ValueError('Invalid term!') # It has to be invalid if the input is none of the 3
+    if term not in ('Michaelmas', 'Hilary', 'Trinity'):
+        raise ValueError('Invalid term!')
     wolfson_ical_req = requests.get('https://www.wolfson.ox.ac.uk/sites/default/files/inline-files/oxdate.ics')
     if wolfson_ical_req.ok:
         wolfson_ical = icalendar.Calendar.from_ical(wolfson_ical_req.content)
@@ -266,7 +267,7 @@ if __name__ == '__main__':
 
     term = choose_prompt('Which term of the academic year should I look at?', ('Michaelmas', 'Hilary', 'Trinity'))
     cohort_year = number_prompt('Which year group should I look at?', 1, 4)
-    year = int(input('What academic year is it? e.g. 2023 for 2023–2024: '))
+    year = int(input('What year is it? '))
     start_date = get_monday_wk0_date(year, term)
 
     timetable = timetable(term, year, cohort_year, start_date)
